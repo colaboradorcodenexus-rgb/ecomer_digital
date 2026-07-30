@@ -66,13 +66,9 @@ La base de datos se encuentra estructurada cumpliendo la \*\*Segunda Forma Norma
 
 
 
-\## 🚀 Instalación y Ejecución Local
+## 🚀 Instalación y Ejecución Local
 
+1. Clonar el repositorio:
 
-
-1\. Clonar el repositorio:
-
-&#x20;  ```bash
-
-&#x20;  git clone \[https://github.com/l67483207-creator/ecomercado-digital.git](https://github.com/l67483207-creator/ecomercado-digital.git)
-
+```bash
+git clone [https://github.com/colaboradorcodenexus-rgb/ecomer_digital.git](https://github.com/colaboradorcodenexus-rgb/ecomer_digital.git)
