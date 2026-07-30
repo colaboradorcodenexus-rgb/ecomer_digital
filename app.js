@@ -1,104 +1,185 @@
+// Estado global de la aplicación
 let currentUser = null;
 let currentRole = null;
-let cartCount = 0;
+let orderCount = 0;
 
-let products = [
-  { id: 1, name: "Limón Criollo (Cien)", price: 120.00, stock: 50, origen: "Carazo" },
-  { id: 2, name: "Naranja Dulce (Cien)", price: 150.00, stock: 30, origen: "Masia" }
+// Inicialización de datos con persistencia en sessionStorage
+const initialProducts = [
+    { id: 1, name: "Limón Criollo (Cien)", price: 120, stock: 50, origin: "Carazo" },
+    { id: 2, name: "Naranja Dulce (Cien)", price: 150, stock: 30, origin: "Masia" }
 ];
 
-let logs = [];
+let products = JSON.parse(sessionStorage.getItem('app_products')) || [...initialProducts];
+let logs = JSON.parse(sessionStorage.getItem('app_logs')) || [];
 
-function logEvent(eventText) {
-  const timestamp = new Date().toLocaleTimeString();
-  logs.unshift(`[${timestamp}] - ${eventText}`);
-  const logList = document.getElementById("auditLogs");
-  if(logList) logList.innerHTML = logs.map(l => `<li class="list-group-item">${l}</li>`).join('');
+// Función para registrar eventos en la auditoría
+function addLog(message) {
+    const time = new Date().toLocaleTimeString();
+    logs.push(`[${time}] - ${message}`);
+    sessionStorage.setItem('app_logs', JSON.stringify(logs));
 }
 
-function handleLogin(e) {
-  e.preventDefault();
-  currentUser = document.getElementById("username").value;
-  currentRole = document.getElementById("roleSelect").value;
+// Iniciar Sesión (se ejecuta con el formulario del HTML)
+function handleLogin(event) {
+    event.preventDefault(); // Evita que la página se recargue
 
-  document.getElementById("loginSection").classList.add("d-none");
-  document.getElementById("mainDashboard").classList.remove("d-none");
-  document.getElementById("logoutBtn").classList.remove("d-none");
+    const usernameInput = document.getElementById("username").value.trim();
+    const roleSelect = document.getElementById("roleSelect").value;
 
-  const status = document.getElementById("userStatus");
-  status.textContent = `${currentUser} (${currentRole})`;
-  status.className = `me-3 badge ${currentRole === 'Admin' ? 'bg-danger' : currentRole === 'Auditor' ? 'bg-warning text-dark' : 'bg-primary'}`;
+    if (!usernameInput || !roleSelect) {
+        alert("Por favor ingrese su usuario y seleccione un rol.");
+        return;
+    }
 
-  logEvent(`Sesión iniciada por ${currentUser} con el rol [${currentRole}]`);
-  setupPermissions();
+    currentUser = usernameInput;
+    currentRole = roleSelect;
+
+    // Registrar en auditoría
+    addLog(`Sesión iniciada por ${currentUser} con el rol [${currentRole}]`);
+
+    // Mostrar barra superior de usuario
+    document.getElementById("userStatus").innerText = `${currentUser} (${currentRole})`;
+    document.getElementById("userStatus").className = "me-3 badge bg-info text-dark";
+    document.getElementById("logoutBtn").classList.remove("d-none");
+
+    // Ocultar login y mostrar dashboard
+    document.getElementById("loginSection").classList.add("d-none");
+    document.getElementById("mainDashboard").classList.remove("d-none");
+
+    renderViews();
 }
 
-function setupPermissions() {
-  const productorPanel = document.getElementById("productorPanel");
-  const catalogPanel = document.getElementById("catalogPanel");
-  const auditorPanel = document.getElementById("auditorPanel");
-
-  productorPanel.classList.add("d-none");
-  catalogPanel.classList.add("d-none");
-  auditorPanel.classList.add("d-none");
-
-  if (currentRole === "Admin" || currentRole === "Productor") {
-    productorPanel.classList.remove("d-none");
-    catalogPanel.classList.remove("d-none");
-    renderProducts(true);
-  } else if (currentRole === "Comprador") {
-    catalogPanel.classList.remove("d-none");
-    renderProducts(false);
-  } else if (currentRole === "Auditor") {
-    auditorPanel.classList.remove("d-none");
-  }
-}
-
-function renderProducts(canEdit) {
-  const container = document.getElementById("productList");
-  container.innerHTML = "";
-
-  products.forEach(p => {
-    const col = document.createElement("div");
-    col.className = "col-md-4";
-    col.innerHTML = `
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">${p.name}</h5>
-          <p class="card-text text-success fw-bold">C$ ${p.price.toFixed(2)}</p>
-          <p class="card-text"><small class="text-muted">Disponible: ${p.stock} | Origen: ${p.origen}</small></p>
-          ${!canEdit ? `<button class="btn btn-outline-success btn-sm w-100" onclick="buyProduct(${p.id})">Realizar Pedido</button>` : ''}
-        </div>
-      </div>
-    `;
-    container.appendChild(col);
-  });
-}
-
-function handleAddProduct(e) {
-  e.preventDefault();
-  const name = document.getElementById("prodName").value;
-  const price = parseFloat(document.getElementById("prodPrice").value);
-  const stock = parseInt(document.getElementById("prodStock").value);
-
-  products.push({ id: products.length + 1, name, price, stock, origen: "Nicaragua" });
-  logEvent(`El usuario '${currentUser}' registró una cosecha de: ${name}`);
-  renderProducts(true);
-  e.target.reset();
-}
-
-function buyProduct(id) {
-  const prod = products.find(p => p.id === id);
-  if (prod && prod.stock > 0) {
-    prod.stock--;
-    cartCount++;
-    document.getElementById("cartCount").textContent = `Pedidos: ${cartCount}`;
-    logEvent(`Comprador '${currentUser}' reservó: ${prod.name}`);
-    renderProducts(false);
-  }
-}
-
+// Cerrar Sesión
 function logout() {
-  logEvent(`Cierre de sesión de ${currentUser}`);
-  location.reload();
+    if (currentUser) {
+        addLog(`Sesión cerrada por ${currentUser}`);
+    }
+    
+    currentUser = null;
+    currentRole = null;
+
+    document.getElementById("userStatus").innerText = "Sin sesión";
+    document.getElementById("userStatus").className = "me-3 badge bg-secondary";
+    document.getElementById("logoutBtn").classList.add("d-none");
+
+    document.getElementById("mainDashboard").classList.add("d-none");
+    document.getElementById("loginSection").classList.remove("d-none");
+
+    document.getElementById("username").value = "";
+    document.getElementById("roleSelect").selectedIndex = 0;
+}
+
+// Renderizar paneles según el rol activo
+function renderViews() {
+    const productorPanel = document.getElementById("productorPanel");
+    const catalogPanel = document.getElementById("catalogPanel");
+    const auditorPanel = document.getElementById("auditorPanel");
+
+    // Ocultar todos por defecto
+    productorPanel.classList.add("d-none");
+    catalogPanel.classList.add("d-none");
+    auditorPanel.classList.add("d-none");
+
+    if (currentRole === "Productor" || currentRole === "Admin") {
+        productorPanel.classList.remove("d-none");
+        catalogPanel.classList.remove("d-none");
+        renderCatalog(false);
+    } else if (currentRole === "Comprador") {
+        catalogPanel.classList.remove("d-none");
+        renderCatalog(true);
+    } else if (currentRole === "Auditor") {
+        auditorPanel.classList.remove("d-none");
+        renderAuditorLogs();
+    }
+}
+
+// Renderizar productos en el catálogo
+function renderCatalog(showOrderButton) {
+    const productList = document.getElementById("productList");
+    productList.innerHTML = "";
+
+    products.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "col-md-4 mb-3";
+        card.innerHTML = `
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-success">${p.name}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">C$ ${parseFloat(p.price).toFixed(2)}</h6>
+                    <p class="card-text">Disponible: ${p.stock} | Origen: ${p.origin}</p>
+                    ${showOrderButton ? `<button class="btn btn-outline-success w-100" onclick="makeOrder(${p.id})">Realizar Pedido</button>` : ''}
+                </div>
+            </div>
+        `;
+        productList.appendChild(card);
+    });
+}
+
+// Agregar producto
+function handleAddProduct(event) {
+    event.preventDefault();
+
+    const name = document.getElementById("prodName").value.trim();
+    const price = parseFloat(document.getElementById("prodPrice").value);
+    const stock = parseInt(document.getElementById("prodStock").value);
+
+    if (!name || isNaN(price) || isNaN(stock)) {
+        alert("Por favor complete todos los campos del producto.");
+        return;
+    }
+
+    const newProd = {
+        id: Date.now(),
+        name: name,
+        price: price,
+        stock: stock,
+        origin: "Nicaragua"
+    };
+
+    products.push(newProd);
+    sessionStorage.setItem('app_products', JSON.stringify(products));
+    addLog(`Nuevo producto publicado por ${currentUser}: ${name} (${stock} unidades a C$${price})`);
+
+    document.getElementById("prodName").value = "";
+    document.getElementById("prodPrice").value = "";
+    document.getElementById("prodStock").value = "";
+
+    renderCatalog(false);
+}
+
+// Realizar pedido
+function makeOrder(productId) {
+    const prod = products.find(p => p.id === productId);
+    if (prod && prod.stock > 0) {
+        prod.stock--;
+        orderCount++;
+        sessionStorage.setItem('app_products', JSON.stringify(products));
+        
+        document.getElementById("cartCount").innerText = `Pedidos: ${orderCount}`;
+        addLog(`Pedido realizado por ${currentUser} sobre producto: ${prod.name}`);
+        
+        renderCatalog(true);
+    } else {
+        alert("Producto agotado.");
+    }
+}
+
+// Renderizar registros de auditoría
+function renderAuditorLogs() {
+    const auditLogs = document.getElementById("auditLogs");
+    auditLogs.innerHTML = "";
+
+    const currentLogs = JSON.parse(sessionStorage.getItem('app_logs')) || logs;
+
+    if (currentLogs.length === 0) {
+        auditLogs.innerHTML = `<li class="list-group-item text-muted">No hay registros aún.</li>`;
+        return;
+    }
+
+    currentLogs.forEach(log => {
+        const item = document.createElement("li");
+        item.className = "list-group-item text-secondary font-monospace small";
+        item.innerText = log;
+        auditLogs.appendChild(item);
+    });
 }
